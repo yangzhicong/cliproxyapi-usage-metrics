@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用量与性能统计 · CLIProxyAPI</title>
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --border: #e6e8ef;
+    --text: #0f172a;
+    --muted: #64748b;
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --green: #10b981;
+    --green-text: #047857;
+    --green-soft: #ecfdf5;
+    --amber: #d97706;
+    --amber-soft: #fffbeb;
+    --red: #dc2626;
+    --red-soft: #fef2f2;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 22px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1260px; margin: 0 auto; }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .title-box h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .title-box .sub {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 3px;
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .seg button.active {
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 13px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .btn:hover { background: #f8fafc; }
+  .btn.danger { color: var(--red); border-color: #fecaca; }
+  .btn.danger:hover { background: var(--red-soft); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 1020px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+  .kpi-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kpi-head {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .kpi-val {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 12px;
+    line-height: 1.15;
+  }
+  .kpi-progress {
+    width: 100%;
+    height: 6px;
+    background: #eef2f7;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .kpi-progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    border-radius: 999px;
+    transition: width 0.25s ease;
+  }
+  .kpi-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .meta-k {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .meta-v {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-v.accent { color: var(--primary); }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pill.ttft {
+    min-width: 58px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .pill.green { background: var(--green-soft); color: var(--green-text); }
+  .pill.amber { background: var(--amber-soft); color: var(--amber); }
+  .pill.red { background: var(--red-soft); color: var(--red); }
+  .pill.indigo { background: var(--primary-soft); color: var(--primary); }
+
+  .section { margin-bottom: 18px; }
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .tabs { display: inline-flex; gap: 6px; }
+  .tabs button {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .tabs button.active {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 600;
+  }
+  select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 26px 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr:hover { background: #fafbff; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .rate-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .bar-bg {
+    display: inline-block;
+    width: 52px;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    border-radius: 999px;
+  }
+  .rate-txt {
+    display: inline-block;
+    width: 44px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .uncached-num { color: var(--primary); font-weight: 500; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+  .model-cell { display: flex; flex-direction: column; gap: 1px; line-height: 1.3; }
+  .auth-sub { font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .dim { color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 28px 10px; }
+  .footer-note {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .pager-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pager-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .pager-btn:hover:not(:disabled) { background: #f8fafc; }
+  .pager-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+  .pager-cur {
+    min-width: 54px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title-box">
+      <h1>用量与性能统计</h1>
+      <div class="sub" id="statusLine">加载中...</div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="rangeSeg">
+        <button data-range="today" class="active">今日</button>
+        <button data-range="7d">近 7 天</button>
+        <button data-range="all">全部</button>
+      </div>
+      <button class="btn" id="exportBtn">导出</button>
+      <button class="btn danger" id="clearBtn">清空</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card kpi-card">
+      <div>
+        <div class="kpi-head"><span>总 Token 用量</span><span class="pill indigo" id="kpiReqBadge">0 次</span></div>
+        <div class="kpi-val" id="kpiTotalTokens">0</div>
+      </div>
+      <div class="kpi-meta">
+        <div class="meta-item"><span class="meta-k">输入</span><span class="meta-v" id="kpiIn">0</span></div>
+        <div class="meta-item"><span class="meta-k">未命中</span><span class="meta-v accent" id="kpiUncached">0</span></div>
+        <div class="meta-item"><span class="meta-k">输出</span><span class="meta-v" id="kpiOut">0</span></div>
+        <div class="meta-item"><span class="meta-k">思考</span><span class="meta-v" id="kpiReason">0</span></div>
+      </div>
+    </div>
+
+    <div class="card kpi-card">
+      <div>
+        <div class="kpi-head"><span>缓存命中率</span><span class="pill green" id="kpiCacheBadge">0%</span></div>
+        <div class="kpi-val" id="kpiCacheRate">0.0%</div>
+        <div class="kpi-progress"><span class="kpi-progress-fill" id="kpiCacheBar" style="width:0%"></span></div>
+      </div>
+      <div class="kpi-meta">
+        <div class="meta-item"><span class="meta-k">缓存</span><span class="meta-v" id="kpiCacheRead">0</span></div>
+        <div class="meta-item"><span class="meta-k">命中次数</span><span class="meta-v" id="kpiCacheHits">0 次</span></div>
+      </div>
+    </div>
+
+    <div class="card kpi-card">
+      <div>
+        <div class="kpi-head"><span>平均首字延迟</span></div>
+        <div class="kpi-val" id="kpiTtftAvg">-</div>
+      </div>
+      <div class="kpi-meta">
+        <div class="meta-item"><span class="meta-k">最快</span><span class="meta-v" id="kpiTtftMin">-</span></div>
+        <div class="meta-item"><span class="meta-k">最慢</span><span class="meta-v" id="kpiTtftMax">-</span></div>
+        <div class="meta-item"><span class="meta-k">输出速度</span><span class="meta-v accent" id="kpiTpsAvg">-</span></div>
+        <div class="meta-item"><span class="meta-k">流式占比</span><span class="meta-v" id="kpiStreamRate">-</span></div>
+      </div>
+    </div>
+
+    <div class="card kpi-card">
+      <div>
+        <div class="kpi-head"><span>请求成功率</span><span class="pill green" id="kpiErrBadge">失败 0</span></div>
+        <div class="kpi-val" id="kpiSuccessRate">-</div>
+        <div class="kpi-progress"><span class="kpi-progress-fill" id="kpiSuccessBar" style="width:0%"></span></div>
+      </div>
+      <div class="kpi-meta">
+        <div class="meta-item"><span class="meta-k">平均总耗时</span><span class="meta-v" id="kpiLatAvg">-</span></div>
+        <div class="meta-item"><span class="meta-k">最慢总耗时</span><span class="meta-v" id="kpiLatMax">-</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card section">
+    <div class="section-head">
+      <div class="tabs" id="aggTabs">
+        <button data-tab="model" class="active">按模型统计</button>
+        <button data-tab="auth">按账号统计</button>
+      </div>
+      <span class="sub dim" id="aggHint">按总 Token 降序排列</span>
+    </div>
+    <div class="table-wrap" id="aggTableWrap"></div>
+  </div>
+
+  <div class="card section">
+    <div class="section-head">
+      <h2>最近请求明细</h2>
+      <div class="controls">
+        <select id="authFilter">
+          <option value="">全部账号</option>
+        </select>
+        <select id="modelFilter">
+          <option value="">全部模型</option>
+        </select>
+        <select id="pageSizeSel">
+          <option value="10">10 条/页</option>
+          <option value="15" selected>15 条/页</option>
+          <option value="30">30 条/页</option>
+          <option value="50">50 条/页</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>模型 / 账号</th>
+            <th>模式</th>
+            <th>状态</th>
+            <th class="num">输入</th>
+            <th class="num">未命中</th>
+            <th class="num">命中率</th>
+            <th class="num">输出 / 思考</th>
+            <th class="num">首字延迟</th>
+            <th class="num">总耗时</th>
+          </tr>
+        </thead>
+        <tbody id="recentBody">
+          <tr><td colspan="10" class="empty">暂无请求记录</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager" id="pagerBar">
+      <span id="pagerInfo">共 0 条记录</span>
+      <div class="pager-btns">
+        <button class="pager-btn" id="pageFirst">首页</button>
+        <button class="pager-btn" id="pagePrev">上一页</button>
+        <span class="pager-cur" id="pagerCur">1 / 1</span>
+        <button class="pager-btn" id="pageNext">下一页</button>
+        <button class="pager-btn" id="pageLast">末页</button>
+      </div>
+    </div>
+    <div class="footer-note">
+      <span id="allTimeNote">历史累计：0 次请求 · 0 Tokens</span>
+      <span>每 5 秒前台自动刷新 · 数据持久化于 plugins/usage-metrics.state.json</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.pathname.replace(/\/ui\/?$/, '/api');
+let curRange = 'today';
+let curTab = 'model';
+let curModel = '';
+let curAuth = '';
+let curPage = 1;
+let pageSize = 15;
+let lastData = null;
+let loading = false;
+
+function shortAuth(id) {
+  if (!id) return '-';
+  let s = String(id).trim();
+  s = s.replace(/\.json$/i, '');
+  s = s.replace(/^(antigravity|gemini|claude|codex|vertex|copilot|devin|aistudio)[-_]+/i, '');
+  return s || id;
+}
+
+function fmtNum(n) {
+  n = Number(n || 0);
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e4) return (n / 1e3).toFixed(1) + 'K';
+  return n.toLocaleString('en-US');
+}
+
+function fmtMs(ms) {
+  ms = Number(ms || 0);
+  if (ms <= 0) return '-';
+  if (ms >= 1000) return (ms / 1000).toFixed(2) + 's';
+  return Math.round(ms) + 'ms';
+}
+
+function fmtTps(v) {
+  v = Number(v || 0);
+  if (v <= 0) return '-';
+  return v.toFixed(1) + ' token/s';
+}
+
+function fmtPct(v) {
+  return Number(v || 0).toFixed(1) + '%';
+}
+
+function fmtTime(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts * 1000);
+  const pad = (x) => String(x).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function ttftClass(ms) {
+  if (!ms || ms <= 0) return '';
+  if (ms <= 2000) return 'green';
+  if (ms <= 8000) return 'amber';
+  return 'red';
+}
+
+function renderAggTable() {
+  const wrap = document.getElementById('aggTableWrap');
+  const hint = document.getElementById('aggHint');
+  if (!lastData) return;
+
+  if (curTab === 'model') {
+    hint.textContent = '按总 Token 降序排列';
+    const rows = lastData.by_model || [];
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="empty">当前时间范围内暂无数据</div>';
+      return;
+    }
+    let html = '<table><thead><tr>' +
+      '<th>模型</th><th class="num">请求</th><th class="num">输入</th><th class="num">未命中</th><th class="num">缓存</th>' +
+      '<th class="num">命中率</th><th class="num">输出</th><th class="num">思考</th><th class="num">总 Token</th>' +
+      '<th class="num">输出速度</th><th class="num">平均首字</th><th class="num">平均耗时</th>' +
+      '</tr></thead><tbody>';
+    for (const r of rows) {
+      const rate = Number(r.cache_hit_rate || 0);
+      const uncached = Math.max(0, (r.input_tokens || 0) - (r.cache_read_tokens || 0));
+      html += `<tr>
+        <td class="mono">${esc(r.model)}</td>
+        <td class="num">${r.requests}${r.failed ? ` <span class="pill red">失${r.failed}</span>` : ''}</td>
+        <td class="num">${fmtNum(r.input_tokens)}</td>
+        <td class="num uncached-num">${fmtNum(uncached)}</td>
+        <td class="num">${fmtNum(r.cache_read_tokens)}</td>
+        <td class="num"><span class="rate-cell"><span class="bar-bg"><span class="bar-fill" style="width:${Math.min(100, rate)}%"></span></span><span class="rate-txt">${fmtPct(rate)}</span></span></td>
+        <td class="num">${fmtNum(r.output_tokens)}</td>
+        <td class="num">${fmtNum(r.reasoning_tokens)}</td>
+        <td class="num"><b>${fmtNum(r.total_tokens)}</b></td>
+        <td class="num uncached-num">${fmtTps(r.tps_avg)}</td>
+        <td class="num">${fmtMs(r.ttft_avg_ms)}</td>
+        <td class="num">${fmtMs(r.latency_avg_ms)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } else {
+    hint.textContent = '按请求数降序排列';
+    const rows = lastData.by_auth || [];
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="empty">当前时间范围内暂无数据</div>';
+      return;
+    }
+    let html = '<table><thead><tr>' +
+      '<th>账号 / AuthID</th><th>渠道</th><th class="num">请求</th><th class="num">失败</th>' +
+      '<th class="num">输入</th><th class="num">未命中</th><th class="num">缓存</th><th class="num">命中率</th>' +
+      '<th class="num">总 Token</th><th class="num">平均首字</th><th class="num">平均耗时</th>' +
+      '</tr></thead><tbody>';
+    for (const r of rows) {
+      const rate = Number(r.cache_hit_rate || 0);
+      const uncached = Math.max(0, (r.input_tokens || 0) - (r.cache_read_tokens || 0));
+      html += `<tr>
+        <td class="mono" title="${esc(r.auth_id)}">${esc(shortAuth(r.auth_id))}</td>
+        <td>${esc(r.provider || '-')}</td>
+        <td class="num">${r.requests}</td>
+        <td class="num">${r.failed ? `<span class="pill red">${r.failed}</span>` : '0'}</td>
+        <td class="num">${fmtNum(r.input_tokens)}</td>
+        <td class="num uncached-num">${fmtNum(uncached)}</td>
+        <td class="num">${fmtNum(r.cache_read_tokens)}</td>
+        <td class="num"><span class="rate-cell"><span class="bar-bg"><span class="bar-fill" style="width:${Math.min(100, rate)}%"></span></span><span class="rate-txt">${fmtPct(rate)}</span></span></td>
+        <td class="num"><b>${fmtNum(r.total_tokens)}</b></td>
+        <td class="num">${fmtMs(r.ttft_avg_ms)}</td>
+        <td class="num">${fmtMs(r.latency_avg_ms)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+}
+
+function renderData(d) {
+  lastData = d;
+  const o = d.overview || {};
+  document.getElementById('kpiTotalTokens').textContent = fmtNum(o.total_tokens);
+  document.getElementById('kpiReqBadge').textContent = `${o.requests || 0} 次`;
+  document.getElementById('kpiIn').textContent = fmtNum(o.input_tokens);
+  document.getElementById('kpiUncached').textContent = fmtNum(Math.max(0, (o.input_tokens || 0) - (o.cache_read_tokens || 0)));
+  document.getElementById('kpiOut').textContent = fmtNum(o.output_tokens);
+  document.getElementById('kpiReason').textContent = fmtNum(o.reasoning_tokens);
+
+  const cr = Number(o.cache_hit_rate || 0);
+  document.getElementById('kpiCacheRate').textContent = fmtPct(cr);
+  document.getElementById('kpiCacheBar').style.width = Math.min(100, cr) + '%';
+  const cBadge = document.getElementById('kpiCacheBadge');
+  cBadge.textContent = cr >= 50 ? '高命中' : (cr > 0 ? '已命中' : '未命中');
+  cBadge.className = 'pill ' + (cr >= 50 ? 'green' : (cr > 0 ? 'indigo' : 'amber'));
+  document.getElementById('kpiCacheRead').textContent = fmtNum(o.cache_read_tokens);
+  const reqs = Number(o.requests || 0);
+  const fails = Number(o.failed || 0);
+  const streams = Number(o.stream_requests || 0);
+  const hitReqs = Number(o.cache_hit_requests || 0);
+  document.getElementById('kpiCacheHits').textContent = `${hitReqs} 次`;
+
+  document.getElementById('kpiTtftAvg').textContent = fmtMs(o.ttft_avg_ms);
+  document.getElementById('kpiTtftMin').textContent = fmtMs(o.ttft_min_ms);
+  document.getElementById('kpiTtftMax').textContent = fmtMs(o.ttft_max_ms);
+  document.getElementById('kpiTpsAvg').textContent = fmtTps(o.tps_avg);
+  document.getElementById('kpiStreamRate').textContent = reqs > 0 ? fmtPct((streams / reqs) * 100) : '-';
+
+  const sr = reqs > 0 ? ((reqs - fails) / reqs) * 100 : 0;
+  document.getElementById('kpiSuccessRate').textContent = reqs > 0 ? fmtPct(sr) : '-';
+  document.getElementById('kpiSuccessBar').style.width = Math.min(100, sr) + '%';
+  const eBadge = document.getElementById('kpiErrBadge');
+  eBadge.textContent = `失败 ${fails}`;
+  eBadge.className = 'pill ' + (fails > 0 ? 'red' : 'green');
+  document.getElementById('kpiLatAvg').textContent = fmtMs(o.latency_avg_ms);
+  document.getElementById('kpiLatMax').textContent = fmtMs(o.latency_max_ms);
+
+  const authSel = document.getElementById('authFilter');
+  const auths = (d.by_auth || []).map(x => x.auth_id);
+  const prevAuth = authSel.value;
+  authSel.innerHTML = '<option value="">全部账号</option>' +
+    auths.map(a => `<option value="${esc(a)}">${esc(shortAuth(a))}</option>`).join('');
+  if (auths.includes(prevAuth)) authSel.value = prevAuth;
+
+  const sel = document.getElementById('modelFilter');
+  const models = (d.by_model || []).map(x => x.model);
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">全部模型</option>' +
+    models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  if (models.includes(prev)) sel.value = prev;
+
+  renderAggTable();
+  renderRecentTable();
+
+  const at = d.all_time || {};
+  document.getElementById('allTimeNote').textContent =
+    `历史总计：${at.requests || 0} 次请求（失败 ${at.failed || 0}）· ${fmtNum(at.total_tokens)} Tokens · 累计缓存命中率 ${fmtPct(at.cache_hit_rate)} · 窗口已存 ${d.window_count || 0}/${d.window_cap || 4000} 条`;
+  document.getElementById('statusLine').textContent =
+    `最近刷新：${new Date().toLocaleTimeString('zh-CN')} · 插件版本 v${d.version || '1.0.7'}`;
+}
+
+function renderRecentTable() {
+  const tbody = document.getElementById('recentBody');
+  const recent = (lastData && lastData.recent) ? lastData.recent : [];
+  const total = recent.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (curPage > totalPages) curPage = totalPages;
+  if (curPage < 1) curPage = 1;
+
+  if (!total) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">当前筛选条件下暂无记录</td></tr>';
+    document.getElementById('pagerInfo').textContent = '共 0 条记录';
+  } else {
+    const start = (curPage - 1) * pageSize;
+    const end = Math.min(start + pageSize, total);
+    const slice = recent.slice(start, end);
+    let rowsHtml = '';
+    for (const r of slice) {
+      const st = r.failed
+        ? `<span class="pill red">失败${r.status_code ? ' ' + r.status_code : ''}</span>`
+        : '<span class="pill green">成功</span>';
+      const mode = r.stream ? '<span class="pill indigo">流式</span>' : '<span class="pill amber">非流式</span>';
+      const tc = ttftClass(r.ttft_ms);
+      const ttftHtml = r.ttft_ms > 0 ? `<span class="pill ttft ${tc}">${fmtMs(r.ttft_ms)}</span>` : '-';
+      const uncached = Math.max(0, (r.input_tokens || 0) - (r.cache_read_tokens || 0));
+      rowsHtml += `<tr>
+        <td class="mono">${fmtTime(r.ts)}</td>
+        <td><div class="model-cell"><span class="mono">${esc(r.model)}</span><span class="auth-sub" title="${esc(r.auth_id)}">${esc(shortAuth(r.auth_id))}</span></div></td>
+        <td>${mode}</td>
+        <td>${st}</td>
+        <td class="num">${fmtNum(r.input_tokens)}</td>
+        <td class="num uncached-num">${fmtNum(uncached)}</td>
+        <td class="num">${fmtPct(r.cache_hit_rate)}</td>
+        <td class="num">${fmtNum(r.output_tokens)} <span class="dim">/ ${fmtNum(r.reasoning_tokens)}</span></td>
+        <td class="num">${ttftHtml}</td>
+        <td class="num">${fmtMs(r.latency_ms)}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = rowsHtml;
+    document.getElementById('pagerInfo').textContent = `显示第 ${start + 1}–${end} 条 / 共 ${total} 条`;
+  }
+
+  document.getElementById('pagerCur').textContent = `${curPage} / ${totalPages}`;
+  document.getElementById('pageFirst').disabled = curPage <= 1;
+  document.getElementById('pagePrev').disabled = curPage <= 1;
+  document.getElementById('pageNext').disabled = curPage >= totalPages;
+  document.getElementById('pageLast').disabled = curPage >= totalPages;
+}
+
+async function fetchSummary() {
+  if (loading) return;
+  loading = true;
+  try {
+    const qs = new URLSearchParams({ op: 'summary', range: curRange, limit: '500' });
+    if (curModel) qs.set('model', curModel);
+    if (curAuth) qs.set('auth', curAuth);
+    const resp = await fetch(`${API_BASE}?${qs.toString()}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    renderData(data);
+  } catch (err) {
+    document.getElementById('statusLine').textContent = '刷新失败：' + err.message;
+  } finally {
+    loading = false;
+  }
+}
+
+document.getElementById('rangeSeg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-range]');
+  if (!btn) return;
+  curRange = btn.dataset.range;
+  curPage = 1;
+  document.querySelectorAll('#rangeSeg button').forEach(b => b.classList.toggle('active', b === btn));
+  fetchSummary();
+});
+
+document.getElementById('aggTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  curTab = btn.dataset.tab;
+  document.querySelectorAll('#aggTabs button').forEach(b => b.classList.toggle('active', b === btn));
+  renderAggTable();
+});
+
+document.getElementById('authFilter').addEventListener('change', (e) => {
+  curAuth = e.target.value;
+  curPage = 1;
+  fetchSummary();
+});
+
+document.getElementById('modelFilter').addEventListener('change', (e) => {
+  curModel = e.target.value;
+  curPage = 1;
+  fetchSummary();
+});
+
+document.getElementById('pageSizeSel').addEventListener('change', (e) => {
+  pageSize = Math.max(1, parseInt(e.target.value, 10) || 15);
+  curPage = 1;
+  renderRecentTable();
+});
+
+document.getElementById('pageFirst').addEventListener('click', () => { curPage = 1; renderRecentTable(); });
+document.getElementById('pagePrev').addEventListener('click', () => { if (curPage > 1) { curPage--; renderRecentTable(); } });
+document.getElementById('pageNext').addEventListener('click', () => { curPage++; renderRecentTable(); });
+document.getElementById('pageLast').addEventListener('click', () => {
+  const total = (lastData && lastData.recent) ? lastData.recent.length : 0;
+  curPage = Math.max(1, Math.ceil(total / pageSize));
+  renderRecentTable();
+});
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  try {
+    const resp = await fetch(`${API_BASE}?op=export`, { cache: 'no-store' });
+    const text = await resp.text();
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `usage-metrics-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert('导出失败: ' + err.message);
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', async () => {
+  if (!confirm('确认清空全部 Token 用量与性能统计记录吗？')) return;
+  try {
+    const resp = await fetch(`${API_BASE}?op=clear`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    curModel = '';
+    curAuth = '';
+    curPage = 1;
+    await fetchSummary();
+  } catch (err) {
+    alert('清空失败: ' + err.message);
+  }
+});
+
+setInterval(() => {
+  if (document.visibilityState === 'visible') fetchSummary();
+}, 5000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') fetchSummary();
+});
+
+fetchSummary();
+</script>
+</body>
+</html>

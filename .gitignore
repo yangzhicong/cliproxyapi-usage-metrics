@@ -1,0 +1,7 @@
+*.so
+*.dylib
+*.dll
+ui_assets.h
+*.state.json
+*.state.json.tmp
+.DS_Store
